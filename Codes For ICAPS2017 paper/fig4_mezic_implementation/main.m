@@ -1,3 +1,4 @@
+% close all
 %% Setting domain bounds
 DomainBounds.xmin = 0.0;
 DomainBounds.xmax = 1.0;
@@ -6,16 +7,16 @@ DomainBounds.ymax = 1.0;
 Lx = DomainBounds.xmax - DomainBounds.xmin;
 Ly = DomainBounds.ymax - DomainBounds.ymin;
 
-%obstacles
-obstacles.r = [0.1,0.05,0.08,0.05];% radii of obstacles
-obstacles.p = [[0.5;0.5],[0.2;0.3],[0.7;0.2],[0.3;0.8]];%positions of obstacles[x1 y1
+% %obstacles
+% obstacles.r = [0.1,0.05,0.08,0.05];% radii of obstacles
+% obstacles.p = [[0.5;0.5],[0.2;0.3],[0.7;0.2],[0.3;0.8]];%positions of obstacles[x1 y1
 %                                                                               x2 y2
-                                                                               .....]
-obstacles.number = numel(obstacles.r);
+%                                                                                .....]
+% obstacles.number = numel(obstacles.r);
 
 % Number of wave-numbers to be used
 Nk = 50;%%
-livePlot = true; %set <true> if you want live plot for trajectories, other <false> for faster execution
+livePlot = false; %set <true> if you want live plot for trajectories, other <false> for faster execution
 %% Calculating muk
 res = 100;% resolution of discretization
 mu=ones(res,res);
@@ -33,8 +34,8 @@ ydel=Ly/res;
 % end
 mu=mu./sum(sum(mu));
 [X,Y]=meshgrid(1:res,1:res);
-surf(X,Y,mu);
-close;
+% surf(X,Y,mu);
+% close;
 % muk = dct2(mu,Nk,Nk);
 %For Matlab DCT to work: (k1,k2)=1,2,..(L1-L2)
 
@@ -68,7 +69,7 @@ end
 
 %% Initializing agent locations
 Nagents = 4;
-posagents = [0.35,0.7;0.05,0.3;0.1,0.95;0.83,0.03];%make sure not to start in an obstacle region!
+posagents = [0.15,0.7;0.05,0.3;0.1,0.95;0.83,0.03];%make sure not to start in an obstacle region!
 AgentSpeed = 5;
 
 colors = ['m','g','b','c'];
@@ -79,18 +80,18 @@ dt = 0.001;
 % Initializing Fourier coefficients of coverage distribution
 Ck = zeros(Nk, Nk);
 ck_t = zeros(Nk, Nk);
-figure(1); hold on;
-viscircles(obstacles.p',obstacles.r);
-%color inside the circles
-for xRange=0:xdel:Lx-xdel
-         for yRange=0:ydel:Ly-ydel
-            for i=1:obstacles.number
-                if (xRange-obstacles.p(1,i))^2 + (yRange-obstacles.p(2,i))^2 <= obstacles.r(i)^2
-                    scatter(xRange, yRange,2,'r','fill');
-                end
-            end
-         end
-end
+figure; hold on;
+% viscircles(obstacles.p',obstacles.r);
+% %color inside the circles
+% for xRange=0:xdel:Lx-xdel
+%          for yRange=0:ydel:Ly-ydel
+%             for i=1:obstacles.number
+%                 if (xRange-obstacles.p(1,i))^2 + (yRange-obstacles.p(2,i))^2 <= obstacles.r(i)^2
+%                     scatter(xRange, yRange,2,'r','fill');
+%                 end
+%             end
+%          end
+% end
 
 axis equal;
 
@@ -99,12 +100,21 @@ s= 1.5;
 % Executing multiple steps of SMC algorithm
 Ergodicity_Metric_save=0;
 tic
+cover = zeros(res+11,res+11);
+cover_plot = zeros(1,Nsteps);
 for it = 1:Nsteps
     time = (it) * dt;
     [posagents, Ck] = SMC_Update(posagents, Ck, muk, time, dt, DomainBounds, AgentSpeed);
     ck_t = Ck/(Nagents*time);
     for iagent = 1:Nagents
         plot(posagents(iagent, 1), posagents(iagent, 2), 'Color', colors(iagent), 'Marker', 'o', 'MarkerSize', 1);
+        cover_x = round(posagents(iagent,1)*100)+6;
+        cover_y = round(posagents(iagent,2)*100)+6;
+        cover(cover_x-5:cover_x+5,cover_y-5:cover_y+5) = 1;
+%         if cover(cover_x,cover_y)==0
+%             cover(cover_x,cover_y) = cover(cover_x,cover_y) + 1; 
+%         end
+        cover_plot(it) = sum(cover,'all');
         if livePlot == true
                 pause(0.001)
         end
@@ -120,9 +130,14 @@ end
 toc
 %% Plotting the metric of ergodicity 
 time=0:0.001:0.001*Nsteps;
-figure;loglog(time(2:end),Ergodicity_Metric_save(2:end))
+figure(2); hold on;
+loglog(time(2:end),Ergodicity_Metric_save(2:end))
 axis([0.001 5 0.0001,1])
 xlabel('Time');
 ylabel('Coverage Metric, \phi(t)');
 title('Metric of ergodicity as a function of time')
+
+figure (3);
+hold on;
+plot(1:Nsteps, cover_plot);
 
